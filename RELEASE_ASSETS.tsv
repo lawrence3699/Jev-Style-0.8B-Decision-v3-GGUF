@@ -1,0 +1,4 @@
+asset_name	original_path	asset_bytes	asset_sha256	original_sha256	mode
+Jev-Style-0.8B-Decision-v3-F16.gguf	Jev-Style-0.8B-Decision-v3-F16.gguf	1516744160	a33f709e10009c3fe182b51e4945d440288b137a35ad5d481e4ac1f2800b1a27	a33f709e10009c3fe182b51e4945d440288b137a35ad5d481e4ac1f2800b1a27	whole
+Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf	Jev-Style-0.8B-Decision-v3-Q4_K_M.gguf	529296864	0a19bc29bacc33e0d871146c8612b24dd14c2ed2e61cedeb7a928b0852628bac	0a19bc29bacc33e0d871146c8612b24dd14c2ed2e61cedeb7a928b0852628bac	whole
+Jev-Style-0.8B-Decision-v3-Q8_0.gguf	Jev-Style-0.8B-Decision-v3-Q8_0.gguf	811843040	cd87d284c4ee355cb0b3fce7391db57ba3ad108e45b3a41b058d529931a2bd5e	cd87d284c4ee355cb0b3fce7391db57ba3ad108e45b3a41b058d529931a2bd5e	whole

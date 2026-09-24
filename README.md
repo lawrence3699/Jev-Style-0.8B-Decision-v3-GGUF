@@ -39,7 +39,7 @@ tags:
 
 # Jev-Style-0.8B-Decision-v3-GGUF
 
-**Jev-Style decision series:** [v1 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-GGUF) → [v2 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-v2-GGUF) → **v3 · 0.8B** · **Website:** [jevstyle.com](https://jevstyle.com/#v3)
+**Jev-Style decision series:** [v1 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-GGUF) → [v2 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-v2-GGUF) → **v3 · 0.8B** · **Website:** [jevstyle.com](https://jevstyle.com/#v3) · **Collection:** [all v3 builds and demos](https://huggingface.co/collections/chaoliangUNSW/jev-style-08b-decision-v3-6ab58abb90ae4b7b55578b3e)
 
 **Jev-style decisions on your laptop.** These are the GGUF builds of [Jev-Style-0.8B-Decision-v3](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3) for llama.cpp: **0.53 GB** in 4-bit (Q4_K_M), with the same decision as full precision on 240 of 240 parity rows. Full results, protocols, training data and licences are on the [main model card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3).
 
@@ -57,6 +57,8 @@ tags:
 **Reads long documents in one call.** Up to 25,600 tokens of input, 25× Laya's 1,024-token default and 25× our 2B v2's prompt. On 1,280 real 24K-token items v3 answers **98.3%** correctly, and accuracy stays flat from 1K to 24K tokens (preregistered claim, passed).
 
 **Also:** +30.3 points over the best official Laya checkpoint on model routing · ahead of Laya multilingual in 51 of 51 languages.
+
+**[Try it in your browser →](https://huggingface.co/spaces/chaoliangUNSW/jev-style-v3)**
 
 
 ## Files

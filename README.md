@@ -43,20 +43,22 @@ tags:
 
 **Jev-style decisions on your laptop.** These are the GGUF builds of [Jev-Style-0.8B-Decision-v3](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3) for llama.cpp: **0.53 GB** in 4-bit (Q4_K_M), with the same decision as full precision on 240 of 240 parity rows. Full results, protocols, training data and licences are on the [main model card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3).
 
-![Jev-Style 0.8B Decision v3: the whole model is 0.53 GB in 4-bit, and it is ahead of Laya typed and Jev on 2,000 typed decisions](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3/resolve/main/figures/banner.png)
+![Jev-Style 0.8B Decision v3: the whole model is 0.53 GB in 4-bit; beyond its training data it is ahead of the best official Laya checkpoint on Banking77, 37 held-out MASSIVE languages and tweet_topic](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3/resolve/main/figures/banner.png)
 
-| | **Jev-Style v3 · 0.8B** | Laya typed | Jev (API) |
-|---|:---:|:---:|:---:|
-| Typed decisions, accuracy ↑ | **79.2%** | 76.6% | 72.7%¹ |
-| Probability error, Brier ↓ | **0.046** | 0.061 | 0.148¹ |
-| Runs on your own machine | **Yes, 0.53 GB (4-bit)** | Yes | No, API only |
-| Longest input per call | **25,600 tokens** | 1,024 by default² | not published |
+| Beyond its training data | **Jev-Style v3 · 0.8B** | Best official Laya |
+|---|:---:|:---:|
+| Banking77, 77 intents (never trained) ↑ | **68.2%** | 49.2% |
+| MASSIVE intent, 37 held-out languages ↑ | **65.5%** | 36.1% |
+| tweet_topic, zero-shot ↑ | **75.5%** | 63.2%¹ |
+| JevBench v1.4.1, 231 public items, zero-shot ↑ | **64.1%** | 58.4%² |
+| Runs on your own machine | **Yes, 0.53 GB (4-bit)** | Yes |
+| Longest input per call | **25,600 tokens** | 1,024 by default³ |
 
-<sub>¹ Same 2,000 typed decisions (LocalLLaMA/typed-decisions). v3 and Laya typed were trained on its train split; Jev is zero-shot, with numbers from the dataset card. Protocol and paired confidence intervals: see the [main model card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3#typed-decisions-08b-beats-the-2b-models-and-jev). ² Default input budget in the Laya README: 1,024 tokens for the multilingual and typed checkpoints, 512 for English.</sub>
+<sub>Laya: the best of its three official checkpoints, re-run by us on identical rows with their shipped temperatures; paired 95% CIs exclude zero for Banking77 and MASSIVE. ¹ English Laya, as published by the elcronos study. ² Laya's score as published on the JevBench board; it lies inside v3's 95% CI, so this lead is a point estimate. ³ Default input budget in the Laya README: 1,024 tokens for the multilingual and typed checkpoints, 512 for English. Jev (API) has higher accuracy than v3 on each of these sets where its accuracy is published. Protocols and confidence intervals: see the [main model card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3#beyond-its-training-data).</sub>
 
 **Reads long documents in one call.** Up to 25,600 tokens of input, 25× Laya's 1,024-token default and 25× our 2B v2's prompt. On 1,280 real 24K-token items v3 answers **98.3%** correctly, and accuracy stays flat from 1K to 24K tokens (preregistered claim, passed).
 
-**Also:** +30.3 points over the best official Laya checkpoint on model routing · ahead of Laya multilingual in 51 of 51 languages.
+**Also:** ahead of Laya multilingual in 51 of 51 languages · +2.6 points over Laya's typed checkpoint on typed decisions, trained on the same split ([how to read that number](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3#reading-the-typed-number)).
 
 **[Try it in your browser →](https://huggingface.co/spaces/chaoliangUNSW/jev-style-v3)**
 
@@ -122,6 +124,12 @@ m.close()
 - The runtime opens a 32,768-token context, which covers the 25,600-token input limit plus the question part.
   The whole input may be up to 25,600 tokens, and the question, options and readout up to 2,048. Over-budget
   inputs raise an error, and nothing is truncated.
+- **Long option lists (added 2026-09-26).** When a choice question's options do not fit the 2,048-token
+  budget together, the runtime scores them in option chunks. Each chunk is an ordinary question with the same
+  text and a contiguous slice of the options, and the chunks are as few and as even as possible. The per-option
+  scores of all chunks then go through one softmax (`option_chunks` in the result). Questions that fit are
+  unchanged: on a 476-request test set, every one of them came back bit-identical to the previous runtime.
+  Use `--no-split-options` (or `split_options=False`) to get the old error instead.
 - The input format, the readout and the calibration temperatures are described on the
   [main card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3#input-format-and-readout).
 
@@ -133,8 +141,9 @@ m.close()
 - **Up to 4.6× faster than a Laya-architecture engine when 10 questions share one 4K-token state** (1,381 ms vs
   6,364 ms with `many_mode="batched"`; the engine is our round-1 MacLaya-4K, one call per question, not an official
   Laya checkpoint), because in that mode the bundled scorer reads the state once. It also answers questions about 8K-token states in 2.3 to 2.6 s.
-- **79.2% on 2,000 typed decisions**, +6.4 points over Jev and +5.7 over the 2B v2, with a 3.2× lower Brier score
-  than Jev (in-domain for v3, zero-shot for Jev).
+- **79.2% on 2,000 typed decisions**, +2.6 points over Laya's typed checkpoint trained on the same split (paired 95%
+  CI +1.0 to +4.2) and +5.7 over the 2B v2. In-domain, so it measures agreement with the dataset's teacher labels;
+  see [reading the typed number](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3#reading-the-typed-number).
 
 ![Quantization: top-1 agreement with full precision and file size](figures/quantization.png)
 

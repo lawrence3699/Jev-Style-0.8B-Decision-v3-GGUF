@@ -139,7 +139,12 @@
     "class": "JevStyleDecisionGGUF",
     "engine": "jev-score (jev_score.cpp, libllama; slot-only logits)",
     "default_quant": "F16",
-    "n_ctx": 32768
+    "n_ctx": 32768,
+    "split_options": {
+      "default": true,
+      "added": "2026-09-26",
+      "what": "choice questions over the 2,048-token head budget are scored in contiguous, token-balanced option chunks (fewest chunks); one softmax over all options; in-budget questions bit-identical to the previous runtime"
+    }
   },
   "gguf_metadata_edit": {
     "what": "general.name set to 'Jev-Style-0.8B-Decision-v3' (metadata only; the exported files had 'Text Only'); tensor data byte-identical",

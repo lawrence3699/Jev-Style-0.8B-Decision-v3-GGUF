@@ -189,6 +189,48 @@ class Renderer:
     def prefix_ids(self, state):
         return self.enc("State:\n") + self.enc(serialize_state(state)) + self.enc("\n\n")
 
+    def plan_option_chunks(self, question, head_max=None):
+        """Option split for a choice question whose options do not fit the head budget together.
+
+        Returns None when the whole question fits (the normal, unsplit path). Otherwise a list of
+        contiguous option-name chunks, in request order, each rendering within ``head_max``: the
+        fewest chunks possible, balanced by token count. Every chunk repeats the question text, so
+        each option is judged exactly as in an ordinary question with fewer options. Raises
+        InputBudgetError when a single option cannot fit even alone. Token counts are exact: the
+        renderer encodes these pieces separately and concatenates them."""
+        head_max = self.head_max if head_max is None else int(head_max)
+        names = option_names(question)
+        opts = [self.enc(o) for o in render_options(question)]
+        fixed = len(self.enc(f"Question [{question['t']}]: {question['ins']}\nOptions:\n")) + len(self.judge)
+        cost = [len(self.dash) + 2 * len(o) + len(self.arrow) + 2 * len(self.newline) for o in opts]
+        if fixed + sum(cost) <= head_max:
+            return None
+        room = head_max - fixed
+        if question["t"] != "choice":
+            raise InputBudgetError(f"question + options + readout need {fixed + sum(cost)} tokens; the head budget "
+                                   f"is {head_max}. Only choice questions are split over option chunks.")
+        if max(cost) > room:
+            raise InputBudgetError(f"one option needs {max(cost)} tokens, more than the {room} left for options "
+                                   f"under the {head_max}-token head budget. Nothing was truncated.")
+
+        def pack(cap):
+            chunks, cur, used = [], [], 0
+            for n, c in zip(names, cost):
+                if cur and used + c > cap:
+                    chunks.append(cur)
+                    cur, used = [], 0
+                cur.append(n)
+                used += c
+            return chunks + [cur]
+
+        k = len(pack(room))                           # fewest chunks
+        total = sum(cost)
+        for cap in range(max(max(cost), -(-total // k)), room + 1):
+            chunks = pack(cap)                        # smallest cap that still needs only k chunks = balanced
+            if len(chunks) <= k:
+                return chunks
+        return pack(room)
+
     def render(self, state, question, head_max=None, max_len=None):
         head_max = self.head_max if head_max is None else int(head_max)
         max_len = self.max_len if max_len is None else min(int(max_len), self.max_len)
@@ -216,6 +258,16 @@ class Renderer:
                                    f"limit is {max_len} (model maximum {CONTEXT_LIMIT}). Nothing was truncated: "
                                    f"shorten the state.")
         return Rendered(ids, len(prefix), [len(prefix) + s for s in rel], names, len(suffix))
+
+
+class SplitRendered:
+    """Several renders of one choice question (one per option chunk), read as one decision."""
+    __slots__ = ("parts", "chunks", "names", "input_tokens", "head_tokens")
+
+    def __init__(self, parts, chunks, names):
+        self.parts, self.chunks, self.names = parts, chunks, names
+        self.input_tokens = sum(len(r.ids) for r in parts)
+        self.head_tokens = sum(r.head_tokens for r in parts)
 
 
 # -- calibration ----------------------------------------------------------------------------------
@@ -301,8 +353,33 @@ class DecisionBase:
         return lookup_temperature(self.temperatures, category or self.default_category, question["t"],
                                   len(option_names(question)))
 
+    split_options = True      # choice questions over the head budget are scored in option chunks
+
     def _scores_many(self, rendered):
         return [self._scores(r) for r in rendered]
+
+    def _render(self, state, q, head_max=None):
+        """Render one question; a choice question whose options exceed the head budget becomes a
+        SplitRendered (see Renderer.plan_option_chunks) unless ``split_options`` is False."""
+        chunks = self.renderer.plan_option_chunks(q, head_max) if self.split_options else None
+        if chunks is None:
+            return self.renderer.render(state, q, head_max=head_max)
+        parts = [self.renderer.render(state, dict(q, crit={n: q["crit"][n] for n in c}), head_max=head_max)
+                 for c in chunks]
+        return SplitRendered(parts, chunks, option_names(q))
+
+    def _score_all(self, rendered):
+        """Scores for a list of Rendered / SplitRendered: all parts go into one _scores_many call
+        (one backend request per state); a split question gets its chunks' option scores back in
+        option order."""
+        flat = [p for r in rendered for p in (r.parts if isinstance(r, SplitRendered) else [r])]
+        scores = self._scores_many(flat) if len(flat) > 1 else [self._scores(flat[0])]
+        out, i = [], 0
+        for r in rendered:
+            n = len(r.parts) if isinstance(r, SplitRendered) else 1
+            out.append([x for sc in scores[i:i + n] for x in sc])
+            i += n
+        return out
 
     def _result(self, r, q, scores, category=None, temperature=None):
         scores = [float(x) for x in scores]
@@ -315,8 +392,10 @@ class DecisionBase:
         i = int(p.argmax())
         return {"answer": r.names[i], "probabilities": dict(zip(r.names, p.tolist())),
                 "scores": dict(zip(r.names, scores)), "temperature": t, "top_probability": float(p[i]),
-                "entropy_concentration": concentration(p), "input_tokens": len(r.ids), "head_tokens": r.head_tokens,
-                "model": MODEL_NAME, "backend": self.backend}
+                "entropy_concentration": concentration(p),
+                "input_tokens": r.input_tokens if isinstance(r, SplitRendered) else len(r.ids),
+                "head_tokens": r.head_tokens, "model": MODEL_NAME, "backend": self.backend,
+                **({"option_chunks": len(r.parts)} if isinstance(r, SplitRendered) else {})}
 
     def decide(self, state, question, options=None, qtype=None, category=None, temperature=None, head_max=None):
         """Score one question about ``state``.
@@ -327,11 +406,14 @@ class DecisionBase:
         readout_config.json is used; ``category`` picks the fitted group temperature of its family
         (e.g. "mac_gate", "general_topic", "theme_routing", "intent", "typed_official");
         ``temperature`` overrides both (1.0 = uncalibrated scores).
+        A choice question whose options exceed the 2,048-token head budget is scored in option chunks
+        (``option_chunks`` in the result): each chunk is an ordinary question with the same text and a
+        contiguous slice of the options, and the per-option scores of all chunks go through one softmax.
         Raises InputBudgetError (never truncates) or QuestionError.
         """
         q = make_question(question, options, qtype)
-        r = self.renderer.render(state, q, head_max=head_max)
-        return self._result(r, q, self._scores(r), category, temperature)
+        r = self._render(state, q, head_max)
+        return self._result(r, q, self._score_all([r])[0], category, temperature)
 
     def decide_many(self, state, questions, category=None, temperature=None, head_max=None):
         """Several questions about the same state (each a dict {"t","ins","crit"}); results in order.
@@ -340,10 +422,10 @@ class DecisionBase:
         its faster, not bit-identical many_mode="batched"). All questions are rendered and
         budget-checked before any scoring."""
         qs = [make_question(q) for q in questions]
-        rs = [self.renderer.render(state, q, head_max=head_max) for q in qs]
+        rs = [self._render(state, q, head_max) for q in qs]
         if not rs:
             return []
-        return [self._result(r, q, sc, category, temperature) for r, q, sc in zip(rs, qs, self._scores_many(rs))]
+        return [self._result(r, q, sc, category, temperature) for r, q, sc in zip(rs, qs, self._score_all(rs))]
 
 
 def base_arg_parser(description):
@@ -446,7 +528,8 @@ class JevStyleDecisionGGUF(DecisionBase):
 
     def __init__(self, model_dir=HERE, quant="F16", gguf=None, binary=None, category=None, head_max=HARD_HEAD_MAX,
                  max_len=CONTEXT_LIMIT, n_gpu_layers=999, threads=None, flash_attn="auto", n_ubatch=1024,
-                 many_mode="exact", verify=False, stderr=None):
+                 many_mode="exact", verify=False, stderr=None, split_options=True):
+        self.split_options = bool(split_options)
         if many_mode not in MANY_MODES:
             raise ValueError(f"many_mode must be one of {MANY_MODES}, got {many_mode!r}")
         self.many_mode = many_mode
@@ -538,10 +621,13 @@ def main(argv=None):
     ap.add_argument("--jev-score", help="path to the jev-score binary (default: $JEV_SCORE_BIN, ./build/jev-score)")
     ap.add_argument("--ngl", type=int, default=999, help="layers offloaded to the GPU")
     ap.add_argument("--threads", type=int)
+    ap.add_argument("--no-split-options", action="store_true",
+                    help="raise InputBudgetError instead of scoring an over-budget choice question in option chunks")
     args = ap.parse_args(argv)
     engine = JevStyleDecisionGGUF(args.model_dir, quant=args.quant, gguf=args.gguf, binary=args.jev_score,
                                   category=args.category, head_max=args.head_max, max_len=args.max_len,
-                                  n_gpu_layers=args.ngl, threads=args.threads, verify=args.verify)
+                                  n_gpu_layers=args.ngl, threads=args.threads, verify=args.verify,
+                                  split_options=not args.no_split_options)
     try:
         return run_cli(args, engine)
     finally:

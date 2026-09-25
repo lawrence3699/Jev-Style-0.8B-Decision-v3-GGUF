@@ -1,7 +1,7 @@
 {
   "format": "jev-style-manifest-v1",
   "repo": "chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF",
-  "created_unix": 1790264853.533694,
+  "created_unix": 1790293527.146775,
   "files": {
     "Jev-Style-0.8B-Decision-v3-F16.gguf": {
       "sha256": "a33f709e10009c3fe182b51e4945d440288b137a35ad5d481e4ac1f2800b1a27",
@@ -24,8 +24,8 @@
       "bytes": 2585
     },
     "README.md": {
-      "sha256": "47843ec24cbec51f8ce3c6e364753c1d13626519f67ee7079126f14a7c2465a2",
-      "bytes": 8819
+      "sha256": "6bddb2bca3b1011ce1ff5f5118fde2109b43b6c6c72e12aae0ebe504fbf2859a",
+      "bytes": 10193
     },
     "build_jev_score.sh": {
       "sha256": "5789a1585c51fbc4a03b423099a451e05cb66b9db49bc6c9361f326aca170fda",
@@ -60,16 +60,16 @@
       "bytes": 18088
     },
     "jev_style_decision_gguf.py": {
-      "sha256": "2db954a8a0792668c2d6c051fc8149e695675968cf32c52003f95820fdd95c5a",
-      "bytes": 28332
+      "sha256": "e6b028f043d943b5e33d63368070405c5f038b6ee6f71a11b44e93caa562f5ed",
+      "bytes": 33312
     },
     "readout_config.json": {
       "sha256": "01de9bcce7effbfd1ae0a3fa13e52d7fa9aa4dd1cd1e47977d6bbdcd5e63054a",
       "bytes": 6236
     },
     "release_config.json": {
-      "sha256": "871d7cd4fc122be981da9acc05e4dae32adfb08f37ef12b224fba3e406ef3432",
-      "bytes": 17035
+      "sha256": "c2651284fec1e877a19641063e36d0f3c1f367ccdcfc7a325657dc7bedd01d8f",
+      "bytes": 17343
     },
     "requirements.txt": {
       "sha256": "632dbfd22eefe09f9008e6437f2849c674c067080473eb5e9d7d3f5910f425eb",

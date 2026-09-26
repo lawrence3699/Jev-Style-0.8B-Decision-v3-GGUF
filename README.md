@@ -39,7 +39,19 @@ tags:
 
 # Jev-Style-0.8B-Decision-v3-GGUF
 
-**Jev-Style decision series:** [v1 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-GGUF) → [v2 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-v2-GGUF) → **v3 · 0.8B** · **Website:** [jevstyle.com](https://jevstyle.com/#v3) · **Collection:** [all v3 builds and demos](https://huggingface.co/collections/chaoliangUNSW/jev-style-08b-decision-v3-6ab58abb90ae4b7b55578b3e)
+**Jev-Style decision series:** [v1 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-GGUF) → [v2 · 2B](https://huggingface.co/chaoliangUNSW/Jev-Style-Qwen3.5-2B-Decision-v2-GGUF) → **v3 · 0.8B** · **GitHub:** [jev-style](https://github.com/lawrence3699/jev-style) · **Website:** [jevstyle.com](https://jevstyle.com/#v3) · **Collection:** [all v3 builds and demos](https://huggingface.co/collections/chaoliangUNSW/jev-style-08b-decision-v3-6ab58abb90ae4b7b55578b3e)
+
+> **Run it locally, inside your agents:** [github.com/lawrence3699/jev-style](https://github.com/lawrence3699/jev-style) serves this model behind a systemone-compatible API with a Playground, and adds six agent skills (`npx skills add lawrence3699/jev-style`), a Claude Code guard hook and MCP tools.
+> `pip install "jev-style"`, then `jev-style serve --backend gguf --scorer /path/to/jev-score`, or in Python:
+>
+> ```python
+> from jev_style import JevStyle, noul
+> js = JevStyle.from_pretrained("chaoliangUNSW/Jev-Style-0.8B-Decision-v3-GGUF", quant="Q4_K_M", scorer="/path/to/jev-score")
+> js.decide("I was charged twice.", {"billing": noul("This is about billing.")})
+> ```
+>
+> Build the `jev-score` scorer once with `build_jev_score.sh` from this repo (see Quick start).
+
 
 **Jev-style decisions on your laptop.** These are the GGUF builds of [Jev-Style-0.8B-Decision-v3](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3) for llama.cpp: **0.53 GB** in 4-bit (Q4_K_M), with the same decision as full precision on 240 of 240 parity rows. Full results, protocols, training data and licences are on the [main model card](https://huggingface.co/chaoliangUNSW/Jev-Style-0.8B-Decision-v3).
 
